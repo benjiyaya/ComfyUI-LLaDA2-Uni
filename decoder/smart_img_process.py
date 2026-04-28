@@ -1,7 +1,7 @@
 """Smart image resizing with aspect-ratio preservation and factor alignment."""
 
 import math
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from PIL import Image
 
 
@@ -67,7 +67,7 @@ def resize_and_center_crop(
 
 
 def smart_resize_images(
-    image_paths: List[str],
+    image_paths: List[Union[str, Image.Image]],
     patch_size: int = 16,
     merge_size: int = 2,
     single_min_pixels: int = 128 * 128,
@@ -100,7 +100,11 @@ def smart_resize_images(
         if path is None:
             images.append(path)
             continue
-        img = Image.open(path).convert("RGB")
+
+        if isinstance(path, Image.Image):
+            img = path.convert("RGB")
+        else:
+            img = Image.open(path).convert("RGB")
         width, height = img.size
 
         target_h, target_w = smart_resize(height, width, min_pixels, max_pixels, factor)

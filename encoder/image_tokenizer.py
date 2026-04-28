@@ -45,14 +45,13 @@ def make_vision_config(raw: dict) -> SimpleNamespace:
     attn_impl = "eager"
     try:
         from flash_attn import flash_attn_varlen_func
-        attn_impl = "flash_attention_2"
+        if callable(flash_attn_varlen_func):
+            attn_impl = "flash_attention_2"
+        else:
+            raise ImportError
     except ImportError:
-        try:
-            import torch
-            if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
-                attn_impl = "sdpa"
-        except:
-            pass
+        if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
+            attn_impl = "sdpa"
     return SimpleNamespace(
         hidden_size=vc["hidden_size"], intermediate_size=vc["intermediate_size"],
         num_heads=vc["num_heads"], depth=vc["depth"],
@@ -234,20 +233,21 @@ class VisionAttention(nn.Module):
                     ], dim=1)
                 attn_output = attn_output.reshape(seq_length, -1).contiguous()
                 return self.proj(attn_output)
-        except (ImportError, KeyError, AttributeError):
+        except Exception:
             pass
 
         # Fallback: try flash_attn directly
         try:
             from flash_attn import flash_attn_varlen_func
-            q = query_states.squeeze(0).transpose(0, 1)  # (seq, heads, dim)
-            k = key_states.squeeze(0).transpose(0, 1)
-            v = value_states.squeeze(0).transpose(0, 1)
-            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
-            attn_output = flash_attn_varlen_func(q, k, v, cu_seqlens, cu_seqlens, max_seqlen, max_seqlen)
-            attn_output = attn_output.reshape(seq_length, -1).contiguous()
-            return self.proj(attn_output)
-        except ImportError:
+            if callable(flash_attn_varlen_func):
+                q = query_states.squeeze(0).transpose(0, 1)  # (seq, heads, dim)
+                k = key_states.squeeze(0).transpose(0, 1)
+                v = value_states.squeeze(0).transpose(0, 1)
+                max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max().item()
+                attn_output = flash_attn_varlen_func(q, k, v, cu_seqlens, cu_seqlens, max_seqlen, max_seqlen)
+                attn_output = attn_output.reshape(seq_length, -1).contiguous()
+                return self.proj(attn_output)
+        except Exception:
             pass
 
         # Final fallback: manual eager attention (chunk by chunk)

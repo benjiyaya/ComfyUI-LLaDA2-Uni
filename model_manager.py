@@ -21,6 +21,7 @@ _MODEL_PATH = None
 _ATTENTION = None  # "flash_attn" | "sdpa" | "sage_attention"
 _DEVICE = "cuda"
 _OFFLOAD = False
+_DTYPE = "bf16"
 
 
 def set_attention_backend(backend: str):
@@ -38,17 +39,30 @@ def _ensure_repo_on_path(model_path: str):
     return node_root
 
 
+def _resolve_torch_dtype(dtype: str):
+    if dtype == "bf16":
+        return torch.bfloat16
+    if dtype == "fp8":
+        # Do not pass float8 as torch_dtype to transformers:
+        # transformers may call torch.set_default_dtype(float8), which fails.
+        # FP8 checkpoints can still be loaded; compute dtype remains bf16.
+        print("[LLaDA] FP8 mode selected: using bf16 compute dtype for compatibility.")
+        return torch.bfloat16
+    raise ValueError(f"Unsupported dtype: {dtype}")
+
+
 def load_llm(model_path: str, device: str = "cuda", attention: str = "flash_attn",
-             offload: bool = False):
+             offload: bool = False, dtype: str = "bf16"):
     """Load the dLLM-MoE backbone. Returns (model, tokenizer)."""
-    global _LLM_MODEL, _LLM_TOKENIZER, _MODEL_PATH, _ATTENTION, _DEVICE, _OFFLOAD
+    global _LLM_MODEL, _LLM_TOKENIZER, _MODEL_PATH, _ATTENTION, _DEVICE, _OFFLOAD, _DTYPE
 
     _ensure_repo_on_path(model_path)
     _ATTENTION = attention
     _DEVICE = device
     _OFFLOAD = offload
+    _DTYPE = dtype
 
-    if _LLM_MODEL is not None and _MODEL_PATH == model_path:
+    if _LLM_MODEL is not None and _MODEL_PATH == model_path and _DTYPE == dtype:
         return _LLM_MODEL, _LLM_TOKENIZER
 
     unload_all()
@@ -59,10 +73,6 @@ def load_llm(model_path: str, device: str = "cuda", attention: str = "flash_attn
     attn_kwargs = {"trust_remote_code": True}
     if attention == "sdpa":
         attn_kwargs["attn_implementation"] = "sdpa"
-    elif attention in ("sage_attention", "sage_attn"):
-        attn_kwargs["attn_implementation"] = "flash_attention_2"  # fallback; sage needs patching
-        # SageAttention: user should have `sageattention` installed.
-        # We monkey-patch after loading if sage is available.
     # flash_attn (default): transformers auto-detects flash-attn2 if installed
 
     # ── Device map ──
@@ -72,38 +82,19 @@ def load_llm(model_path: str, device: str = "cuda", attention: str = "flash_attn
         attn_kwargs["device_map"] = "auto"
         attn_kwargs["max_memory"] = {0: "20GiB", "cpu": "80GiB"}
         attn_kwargs["offload_folder"] = "offload_cache"
-        attn_kwargs["torch_dtype"] = torch.bfloat16
+        attn_kwargs["torch_dtype"] = _resolve_torch_dtype(dtype)
     else:
         attn_kwargs["device_map"] = device
-        attn_kwargs["torch_dtype"] = torch.bfloat16
+        attn_kwargs["torch_dtype"] = _resolve_torch_dtype(dtype)
 
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(model_path, **attn_kwargs).eval()
     model.tokenizer = tokenizer
 
-    # ── SageAttention patching ──
-    if attention in ("sage_attention", "sage_attn"):
-        _try_patch_sage_attn(model)
-
     _LLM_MODEL = model
     _LLM_TOKENIZER = tokenizer
     _MODEL_PATH = model_path
     return model, tokenizer
-
-
-def _try_patch_sage_attn(model):
-    """Attempt to replace flash attention with SageAttention for memory savings."""
-    try:
-        import sageattention
-        # SageAttention provides a drop-in replacement.
-        # The actual patching depends on the model's internal attention module.
-        # For LLaDA's custom modeling code, we set a config flag if supported.
-        if hasattr(model, 'config'):
-            model.config._attn_backend = "sage"
-        print("[LLaDA] SageAttention backend activated")
-    except ImportError:
-        print("[LLaDA] ⚠️ sageattention not installed. Install with: pip install sageattention")
-        print("[LLaDA] Falling back to flash_attn")
 
 
 def get_image_tokenizer(model_path: str, device: str = "cuda"):
@@ -178,4 +169,5 @@ def get_model_state() -> Dict[str, Any]:
         "model_path": _MODEL_PATH,
         "llm_loaded": _LLM_MODEL is not None,
         "attention": _ATTENTION,
+        "dtype": _DTYPE,
     }

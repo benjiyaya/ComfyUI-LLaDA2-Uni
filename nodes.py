@@ -28,11 +28,11 @@ class LLaDALoader:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {},
-            "optional": {
-                "attention": (["flash_attn", "sdpa", "sage_attention"],),
+            "required": {
+                "attention": (["flash_attn", "sdpa"],),
+                "dtype": (["bf16", "fp8"],),
                 "offload": ("BOOLEAN", {"default": False}),
-                "device": ("STRING", {"default": "cuda"}),
+                "device": (["cuda", "cpu"],),
             }
         }
 
@@ -73,17 +73,19 @@ class LLaDALoader:
         subprocess.run(cmd, check=True)
         print("[LLaDA] Model download complete.")
 
-    def load(self, attention: str = "flash_attn",
-             offload: bool = False, device: str = "cuda"):
+    def load(self, attention, dtype, offload, device):
+        if not isinstance(device, str) or not device:
+            device = "cuda"
         from .model_manager import load_llm
         model_path = self._get_fixed_model_path()
         self._download_model_if_missing(model_path)
         model, tokenizer = load_llm(model_path, device=device,
-                                     attention=attention, offload=offload)
+                                     attention=attention, offload=offload, dtype=dtype)
         return ({
             "model_path": model_path,
             "device": device,
             "attention": attention,
+            "dtype": dtype,
             "offload": offload,
         },)
 
@@ -139,7 +141,8 @@ class LLaDATextToImage:
         from .model_manager import load_llm, unload_llm
         llm, tokenizer = load_llm(model["model_path"], model["device"],
                                    model.get("attention", "flash_attn"),
-                                   model.get("offload", False))
+                                   model.get("offload", False),
+                                   model.get("dtype", "bf16"))
 
         kwargs = {
             "prompt": prompt,
@@ -217,7 +220,8 @@ class LLaDAImageUnderstanding:
         from .model_manager import load_llm, get_image_tokenizer, unload_llm
         llm, _ = load_llm(model["model_path"], model["device"],
                            model.get("attention", "flash_attn"),
-                           model.get("offload", False))
+                           model.get("offload", False),
+                           model.get("dtype", "bf16"))
 
         # ComfyUI tensor (B,H,W,C) → PIL
         img_np = (image[0].cpu().numpy() * 255).astype(np.uint8)
@@ -233,7 +237,7 @@ class LLaDAImageUnderstanding:
 
         kwargs = {
             "image_tokens": image_tokens,
-            "h": h, "w": w,
+            "image_h": h, "image_w": w,
             "question": question,
             "steps": gen_steps,
             "gen_length": gen_length,
@@ -295,7 +299,8 @@ class LLaDAImageEditing:
         from .model_manager import load_llm, get_image_tokenizer, unload_llm
         llm, _ = load_llm(model["model_path"], model["device"],
                            model.get("attention", "flash_attn"),
-                           model.get("offload", False))
+                           model.get("offload", False),
+                           model.get("dtype", "bf16"))
 
         # ComfyUI tensor → PIL
         img_np = (image[0].cpu().numpy() * 255).astype(np.uint8)

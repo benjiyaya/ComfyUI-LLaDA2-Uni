@@ -19,12 +19,6 @@ ComfyUI custom nodes for LLaDA 2.0-Uni: text-to-image, image understanding (VQA)
 | **LLaDA 2.0-Uni Token Decoder** | Decode VQ tokens to pixel images (normal or turbo mode) |
 | **LLaDA 2.0-Uni Unload Model** | Manually free all VRAM |
 
-
-<img width="1093" height="630" alt="Screenshot 2026-04-29 023237" src="https://github.com/user-attachments/assets/be44a6d3-a0d9-4237-b2c8-60698b8bdc0a" />
-
-<img width="2019" height="1058" alt="Screenshot 2026-04-29 033552" src="https://github.com/user-attachments/assets/ccb6a046-63e0-462a-8754-737f04e6fc86" />
-
-
 ## Model Path Behavior
 
 - Loader model path is fixed to: `<ComfyUI>/models/llada2uni`
@@ -61,6 +55,7 @@ pip install -U "huggingface_hub[cli]"
 
 ```bash
 pip install flash-attn --no-build-isolation
+pip install sageattention
 ```
 
 ## Requirements Notes
@@ -68,6 +63,7 @@ pip install flash-attn --no-build-isolation
 - Python 3.10 recommended
 - PyTorch: newer versions are supported; it does not need to be exactly 2.4/CUDA 12.4
 - `flash-attn` is optional but recommended for best speed
+- `sageattention` is optional for `sage_attn` mode
 
 ## Workflow Connection Guide
 

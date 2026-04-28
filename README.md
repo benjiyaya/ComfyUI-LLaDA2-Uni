@@ -61,7 +61,6 @@ pip install -U "huggingface_hub[cli]"
 
 ```bash
 pip install flash-attn --no-build-isolation
-pip install sageattention
 ```
 
 ## Requirements Notes

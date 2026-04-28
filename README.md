@@ -68,7 +68,6 @@ pip install flash-attn --no-build-isolation
 - Python 3.10 recommended
 - PyTorch: newer versions are supported; it does not need to be exactly 2.4/CUDA 12.4
 - `flash-attn` is optional but recommended for best speed
-- `sageattention` is optional for `sage_attn` mode
 
 ## Workflow Connection Guide
 

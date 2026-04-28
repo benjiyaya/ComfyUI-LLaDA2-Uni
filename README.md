@@ -7,6 +7,7 @@ ComfyUI custom nodes for LLaDA 2.0-Uni: text-to-image, image understanding (VQA)
 - Original LLaDA 2.0-Uni GitHub: https://github.com/inclusionAI/LLaDA2.0-Uni
 - Official model weights: https://huggingface.co/inclusionAI/LLaDA2.0-Uni
 - This ComfyUI custom node repo: https://github.com/benjiyaya/ComfyUI-LLaDA2-Uni
+- Model weights FP8 : https://huggingface.co/benjiaiplayground/LLaDA2.0-Uni-FP8
 
 ## Nodes
 

@@ -306,11 +306,18 @@ class LLaDAImageEditing:
         img_np = (image[0].cpu().numpy() * 255).astype(np.uint8)
         pil_image = Image.fromarray(img_np)
 
-        # Encode source image
+        # Encode source image (preserve full frame: smart resize, no center crop)
         image_tokenizer = get_image_tokenizer(model["model_path"], model["device"])
-        from decoder.utils import generate_crop_size_list, var_center_crop
-        crop_size_list = generate_crop_size_list((512 // 32) ** 2, 32)
-        pil_image = var_center_crop(pil_image, crop_size_list=crop_size_list)
+        from decoder.smart_img_process import smart_resize
+        width, height = pil_image.size
+        target_h, target_w = smart_resize(
+            height=height,
+            width=width,
+            min_pixels=128 * 128,
+            max_pixels=800 * 800,
+            factor=32,
+        )
+        pil_image = pil_image.resize((target_w, target_h), resample=Image.BICUBIC)
         info = image_tokenizer.encode_with_info(pil_image)
         image_tokens = [x + llm.config.image_token_offset for x in info["token_ids"]]
         _, h, w = info["grid_thw"]

@@ -13,7 +13,7 @@ ComfyUI custom nodes for LLaDA 2.0-Uni: text-to-image, image understanding (VQA)
 
 | Node | Description |
 |---|---|
-| **LLaDA 2.0-Uni Loader** | Load model with attention backend (Flash/SDPA/Sage) and CPU offload |
+| **LLaDA 2.0-Uni Loader** | Load model with attention backend (Flash/SDPA) and CPU offload |
 | **LLaDA 2.0-Uni Text-to-Image** | Generate images from text prompts (supports thinking mode + SPRINT) |
 | **LLaDA 2.0-Uni Image Understanding** | VQA: ask questions about images |
 | **LLaDA 2.0-Uni Image Editing** | Edit images with text instructions |
@@ -56,7 +56,6 @@ pip install -U "huggingface_hub[cli]"
 
 ```bash
 pip install flash-attn --no-build-isolation
-pip install sageattention
 ```
 
 ## Requirements Notes
@@ -64,7 +63,6 @@ pip install sageattention
 - Python 3.10 recommended
 - PyTorch: newer versions are supported; it does not need to be exactly 2.4/CUDA 12.4
 - `flash-attn` is optional but recommended for best speed
-- `sageattention` is optional for `sage_attn` mode
 
 ## Workflow Connection Guide
 
@@ -82,7 +80,7 @@ pip install sageattention
 
 ### Optional Memory Cleanup
 
-- Keep `unload_after` enabled on inference nodes (default recommended).
+- Keep `unload_after` enabled on inference nodes.
 - Use `LLaDA Unload Model` node anytime to manually free VRAM.
 
 ## License
